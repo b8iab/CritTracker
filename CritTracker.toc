@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: CritTracker |cffFF4444Crit Records|r
+## Version: 1.1
+## Author: b8iab
+## Notes: Rastrea tus golpes criticos mas altos por nivel y habilidad.
+## SavedVariables: CritTrackerDB
+
+CritTracker.lua
