@@ -3,6 +3,6 @@
 ## Version: 1.1
 ## Author: b8iab
 ## Notes: Rastrea tus golpes criticos mas altos por nivel y habilidad.
-## SavedVariables: CritTrackerDB
+## SavedVariablesPerCharacter: CritTrackerDB
 
 CritTracker.lua
