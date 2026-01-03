@@ -1,8 +1,10 @@
-## Interface: 11200
+## Interface: 11800
 ## Title: CritTracker |cffFF4444Crit Records|r
-## Version: 1.2
+## Version: 1.3
 ## Author: b8iab
-## Notes: Rastrea tus golpes criticos mas altos y tu hit rating melee.
+## Notes: Rastrea tus golpes criticos, DPS, kills y estadisticas de hit rating.
+## Notes-esES: Rastrea tus golpes criticos, DPS, kills y estadisticas de hit rating.
+## Notes-enUS: Track your critical hits, DPS, kills and hit rating stats.
 ## SavedVariablesPerCharacter: CritTrackerDB
 
 CritTracker.lua
