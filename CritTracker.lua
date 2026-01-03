@@ -1,5 +1,5 @@
 -- CritTracker for Turtle WoW (Vanilla 1.12)
--- Version 1.1 - Soporte español + porcentaje de critico
+-- Version 1.2 - Soporte español + porcentaje de critico + hit rating
 
 -- ============================================================
 -- SAVED VARIABLES Y DEFAULTS
@@ -15,11 +15,16 @@ local defaults = {
     bySpell = {},
     sessionMax = {damage = 0, spell = "", target = ""},
     announceNew = true,
-    -- Stats para porcentaje
+    -- Stats para porcentaje de crit
     totalHits = 0,
     totalCrits = 0,
     sessionHits = 0,
     sessionCrits = 0,
+    -- Stats para hit rating (melee)
+    totalMeleeSwings = 0,
+    totalMeleeMisses = 0,
+    sessionMeleeSwings = 0,
+    sessionMeleeMisses = 0,
 }
 
 -- ============================================================
@@ -62,6 +67,11 @@ local function GetCritPercent(crits, total)
     return (crits / total) * 100
 end
 
+local function GetHitPercent(swings, misses)
+    if swings == 0 then return 100 end
+    return ((swings - misses) / swings) * 100
+end
+
 local function DebugMsg(msg)
     if DEBUG then
         DEFAULT_CHAT_FRAME:AddMessage("|cffFF00FF[CT Debug]|r " .. msg)
@@ -72,8 +82,8 @@ end
 -- WIDGET VISUAL
 -- ============================================================
 local Widget = CreateFrame("Button", "CritTrackerWidget", UIParent)
-Widget:SetWidth(160)
-Widget:SetHeight(70)
+Widget:SetWidth(165)
+Widget:SetHeight(82)
 Widget:SetPoint("CENTER", UIParent, "CENTER", 0, -200)
 Widget:SetMovable(true)
 Widget:EnableMouse(true)
@@ -117,12 +127,19 @@ levelText:SetJustifyH("LEFT")
 levelText:SetTextColor(0.7, 0.7, 0.7)
 levelText:SetText("Nivel: --")
 
--- Texto de porcentaje
+-- Texto de porcentaje crit
 local percentText = Widget:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 percentText:SetPoint("TOPLEFT", levelText, "BOTTOMLEFT", 0, -2)
 percentText:SetJustifyH("LEFT")
 percentText:SetTextColor(1, 0.8, 0)
 percentText:SetText("Crit%: --")
+
+-- Texto de porcentaje hit
+local hitText = Widget:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+hitText:SetPoint("TOPLEFT", percentText, "BOTTOMLEFT", 0, -2)
+hitText:SetJustifyH("LEFT")
+hitText:SetTextColor(0.5, 0.8, 1)
+hitText:SetText("Hit%: --")
 
 -- ============================================================
 -- FUNCIONES DE UI
@@ -166,6 +183,16 @@ local function UpdateWidget()
         percentText:SetText(string.format("Crit%%: |cffFFCC00%.1f%%|r (%.1f%% total)", sessionPct, totalPct))
     else
         percentText:SetText("Crit%: --")
+    end
+    
+    -- Porcentaje de hit (melee)
+    local sessionHitPct = GetHitPercent(CritTrackerDB.sessionMeleeSwings, CritTrackerDB.sessionMeleeMisses)
+    local totalHitPct = GetHitPercent(CritTrackerDB.totalMeleeSwings, CritTrackerDB.totalMeleeMisses)
+    
+    if CritTrackerDB.sessionMeleeSwings > 0 then
+        hitText:SetText(string.format("Hit%%: |cff88CCFF%.1f%%|r (%.1f%% total)", sessionHitPct, totalHitPct))
+    else
+        hitText:SetText("Hit%: --")
     end
     
     UpdateLockIcon()
@@ -235,6 +262,11 @@ Widget:SetScript("OnClick", function()
         local totalPct = GetCritPercent(CritTrackerDB.totalCrits, CritTrackerDB.totalHits)
         DEFAULT_CHAT_FRAME:AddMessage(string.format("Crit%% Sesion: |cffFFCC00%.1f%%|r (%d/%d)", sessionPct, CritTrackerDB.sessionCrits, CritTrackerDB.sessionHits))
         DEFAULT_CHAT_FRAME:AddMessage(string.format("Crit%% Total: |cffFFCC00%.1f%%|r (%d/%d)", totalPct, CritTrackerDB.totalCrits, CritTrackerDB.totalHits))
+        
+        local sessionHitPct = GetHitPercent(CritTrackerDB.sessionMeleeSwings, CritTrackerDB.sessionMeleeMisses)
+        local totalHitPct = GetHitPercent(CritTrackerDB.totalMeleeSwings, CritTrackerDB.totalMeleeMisses)
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("Hit%% Sesion: |cff88CCFF%.1f%%|r (%d misses de %d)", sessionHitPct, CritTrackerDB.sessionMeleeMisses, CritTrackerDB.sessionMeleeSwings))
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("Hit%% Total: |cff88CCFF%.1f%%|r (%d misses de %d)", totalHitPct, CritTrackerDB.totalMeleeMisses, CritTrackerDB.totalMeleeSwings))
     end
 end)
 
@@ -258,12 +290,21 @@ Widget:SetScript("OnEnter", function()
     
     GameTooltip:AddLine(" ")
     
-    -- Porcentajes
+    -- Porcentajes de Crit
     local sessionPct = GetCritPercent(CritTrackerDB.sessionCrits, CritTrackerDB.sessionHits)
     local totalPct = GetCritPercent(CritTrackerDB.totalCrits, CritTrackerDB.totalHits)
     GameTooltip:AddLine("|cffFFCC00Estadisticas de Crit:|r")
     GameTooltip:AddDoubleLine("  Sesion:", string.format("%.1f%% (%d/%d)", sessionPct, CritTrackerDB.sessionCrits, CritTrackerDB.sessionHits), 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:AddDoubleLine("  Total:", string.format("%.1f%% (%d/%d)", totalPct, CritTrackerDB.totalCrits, CritTrackerDB.totalHits), 0.7, 0.7, 0.7, 1, 1, 1)
+    
+    GameTooltip:AddLine(" ")
+    
+    -- Porcentajes de Hit (Melee)
+    local sessionHitPct = GetHitPercent(CritTrackerDB.sessionMeleeSwings, CritTrackerDB.sessionMeleeMisses)
+    local totalHitPct = GetHitPercent(CritTrackerDB.totalMeleeSwings, CritTrackerDB.totalMeleeMisses)
+    GameTooltip:AddLine("|cff88CCFFEstadisticas de Hit (Melee):|r")
+    GameTooltip:AddDoubleLine("  Sesion:", string.format("%.1f%% (%d miss / %d)", sessionHitPct, CritTrackerDB.sessionMeleeMisses, CritTrackerDB.sessionMeleeSwings), 0.7, 0.7, 0.7, 0.5, 0.8, 1)
+    GameTooltip:AddDoubleLine("  Total:", string.format("%.1f%% (%d miss / %d)", totalHitPct, CritTrackerDB.totalMeleeMisses, CritTrackerDB.totalMeleeSwings), 0.7, 0.7, 0.7, 0.5, 0.8, 1)
     
     GameTooltip:AddLine(" ")
     
@@ -301,9 +342,9 @@ Widget:SetScript("OnLeave", function()
 end)
 
 -- ============================================================
--- REGISTRO DE HITS (para porcentaje)
+-- REGISTRO DE HITS Y MISSES
 -- ============================================================
-local function RegisterHit(isCrit)
+local function RegisterHit(isCrit, isMelee)
     CritTrackerDB.totalHits = CritTrackerDB.totalHits + 1
     CritTrackerDB.sessionHits = CritTrackerDB.sessionHits + 1
     
@@ -311,6 +352,22 @@ local function RegisterHit(isCrit)
         CritTrackerDB.totalCrits = CritTrackerDB.totalCrits + 1
         CritTrackerDB.sessionCrits = CritTrackerDB.sessionCrits + 1
     end
+    
+    -- Contar swings melee (hits que conectan)
+    if isMelee then
+        CritTrackerDB.totalMeleeSwings = CritTrackerDB.totalMeleeSwings + 1
+        CritTrackerDB.sessionMeleeSwings = CritTrackerDB.sessionMeleeSwings + 1
+    end
+end
+
+local function RegisterMiss()
+    -- Los misses cuentan como swing pero no como hit
+    CritTrackerDB.totalMeleeSwings = CritTrackerDB.totalMeleeSwings + 1
+    CritTrackerDB.sessionMeleeSwings = CritTrackerDB.sessionMeleeSwings + 1
+    CritTrackerDB.totalMeleeMisses = CritTrackerDB.totalMeleeMisses + 1
+    CritTrackerDB.sessionMeleeMisses = CritTrackerDB.sessionMeleeMisses + 1
+    
+    DebugMsg("MISS registrado! Total: " .. CritTrackerDB.sessionMeleeMisses .. "/" .. CritTrackerDB.sessionMeleeSwings)
 end
 
 -- ============================================================
@@ -409,7 +466,7 @@ local function ParseCombatMessage(msg)
     _, _, spell, target, damage = string.find(msg, "Tu (.+) hace un .+ a (.+) por (%d+)")
     if damage and isCrit then
         DebugMsg("CRIT SPELL: " .. damage .. " con " .. spell)
-        return tonumber(damage), spell, target, true
+        return tonumber(damage), spell, target, true, false
     end
     
     -- ==================
@@ -421,7 +478,7 @@ local function ParseCombatMessage(msg)
         _, _, target, damage = string.find(msg, "^Cr.+as a (.+) por (%d+)")
         if damage then
             DebugMsg("CRIT MELEE: " .. damage .. " a " .. target)
-            return tonumber(damage), nil, target, true
+            return tonumber(damage), nil, target, true, true
         end
     end
     
@@ -433,14 +490,14 @@ local function ParseCombatMessage(msg)
     _, _, target, damage = string.find(msg, "Golpeas a (.+) por (%d+)")
     if damage then
         DebugMsg("HIT MELEE: " .. damage)
-        return tonumber(damage), nil, target, false
+        return tonumber(damage), nil, target, false, true
     end
     
     -- "Tu [Spell] golpea a [target] por [damage]." (spell hit normal)
     _, _, spell, target, damage = string.find(msg, "Tu (.+) golpea a (.+) por (%d+)")
     if damage then
         DebugMsg("HIT SPELL: " .. damage .. " con " .. spell)
-        return tonumber(damage), spell, target, false
+        return tonumber(damage), spell, target, false, false
     end
     
     -- ==================
@@ -450,29 +507,76 @@ local function ParseCombatMessage(msg)
     -- "You crit [target] for [damage]."
     _, _, target, damage = string.find(msg, "You crit (.+) for (%d+)")
     if damage then
-        return tonumber(damage), nil, target, true
+        return tonumber(damage), nil, target, true, true
     end
     
     -- "Your [Spell] crits [target] for [damage]"
     _, _, spell, target, damage = string.find(msg, "Your (.+) crits (.+) for (%d+)")
     if damage then
-        return tonumber(damage), spell, target, true
+        return tonumber(damage), spell, target, true, false
     end
     
     -- "You hit [target] for [damage]."
     _, _, target, damage = string.find(msg, "You hit (.+) for (%d+)")
     if damage then
-        return tonumber(damage), nil, target, false
+        return tonumber(damage), nil, target, false, true
     end
     
     -- "Your [Spell] hits [target] for [damage]"
     _, _, spell, target, damage = string.find(msg, "Your (.+) hits (.+) for (%d+)")
     if damage then
-        return tonumber(damage), spell, target, false
+        return tonumber(damage), spell, target, false, false
     end
     
     DebugMsg("No parseado")
     return nil
+end
+
+-- ============================================================
+-- PARSEO DE MENSAJES DE MISS
+-- ============================================================
+local function ParseMissMessage(msg)
+    DebugMsg("Miss msg: " .. msg)
+    
+    -- ==================
+    -- ESPAÑOL - MISSES
+    -- ==================
+    
+    -- "Fallas a [target]." o "Fallas [target]."
+    if string.find(msg, "^Fallas") then
+        DebugMsg("MISS detectado (Fallas)")
+        return true
+    end
+    
+    -- "Tu ataque falla." (variantes)
+    if string.find(msg, "ataque falla") then
+        DebugMsg("MISS detectado (ataque falla)")
+        return true
+    end
+    
+    -- "Erras a [target]" o similar
+    if string.find(msg, "^Erras") then
+        DebugMsg("MISS detectado (Erras)")
+        return true
+    end
+    
+    -- ==================
+    -- INGLES - MISSES
+    -- ==================
+    
+    -- "You miss [target]."
+    if string.find(msg, "^You miss") then
+        DebugMsg("MISS detectado (You miss)")
+        return true
+    end
+    
+    -- "Your attack misses"
+    if string.find(msg, "attack miss") then
+        DebugMsg("MISS detectado (attack miss)")
+        return true
+    end
+    
+    return false
 end
 
 -- ============================================================
@@ -496,6 +600,8 @@ EventFrame:SetScript("OnEvent", function()
         CritTrackerDB.sessionMax = {damage = 0, spell = "", target = ""}
         CritTrackerDB.sessionHits = 0
         CritTrackerDB.sessionCrits = 0
+        CritTrackerDB.sessionMeleeSwings = 0
+        CritTrackerDB.sessionMeleeMisses = 0
         
         LoadPosition()
         UpdateWidget()
@@ -506,14 +612,24 @@ EventFrame:SetScript("OnEvent", function()
             Widget:Hide()
         end
         
-        DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444CritTracker v1.1|r cargado! |cffFFFF00/crit|r para opciones")
+        DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444CritTracker v1.2|r cargado! |cffFFFF00/crit|r para opciones")
         
     elseif event == "PLAYER_LEVEL_UP" then
         playerLevel = UnitLevel("player")
         UpdateWidget()
         
+    elseif event == "CHAT_MSG_COMBAT_SELF_MISSES" then
+        -- Procesar misses melee
+        if DEBUG then
+            DEFAULT_CHAT_FRAME:AddMessage("|cff00FFFF[CT Event]|r " .. event .. ": " .. (arg1 or "nil"))
+        end
+        
+        if arg1 and ParseMissMessage(arg1) then
+            RegisterMiss()
+            UpdateWidget()
+        end
+        
     elseif event == "CHAT_MSG_COMBAT_SELF_HITS" or 
-           event == "CHAT_MSG_COMBAT_SELF_MISSES" or
            event == "CHAT_MSG_SPELL_SELF_DAMAGE" or
            event == "CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF" then
         
@@ -521,10 +637,10 @@ EventFrame:SetScript("OnEvent", function()
             DEFAULT_CHAT_FRAME:AddMessage("|cff00FFFF[CT Event]|r " .. event)
         end
         
-        local damage, spell, target, isCrit = ParseCombatMessage(arg1)
+        local damage, spell, target, isCrit, isMelee = ParseCombatMessage(arg1)
         
         if damage then
-            RegisterHit(isCrit)
+            RegisterHit(isCrit, isMelee)
             
             if isCrit then
                 ProcessCrit(damage, spell, target)
@@ -547,7 +663,7 @@ SlashCmdList["CRITTRACKER"] = function(msg)
     msg = string.lower(msg or "")
     
     if msg == "" or msg == "help" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444=== CritTracker v1.1 ===|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444=== CritTracker v1.2 ===|r")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit|r - Ver este menu")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit show|r - Mostrar widget")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit hide|r - Ocultar widget")
@@ -555,6 +671,7 @@ SlashCmdList["CRITTRACKER"] = function(msg)
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit announce|r - Toggle anuncios")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit stats|r - Ver estadisticas")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit percent|r - Ver porcentaje de crit")
+        DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit hit|r - Ver porcentaje de hit")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit levels|r - Ver records por nivel")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit spells|r - Ver records por habilidad")
         DEFAULT_CHAT_FRAME:AddMessage("|cffFFFF00/crit reset|r - Resetear posicion")
@@ -615,6 +732,16 @@ SlashCmdList["CRITTRACKER"] = function(msg)
         DEFAULT_CHAT_FRAME:AddMessage("|cff888888Compara con tu % real en la ventana de estadisticas (C)|r")
         confirmClear = false
         
+    elseif msg == "hit" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444=== Porcentaje de Hit (Melee) ===|r")
+        local sessionHitPct = GetHitPercent(CritTrackerDB.sessionMeleeSwings, CritTrackerDB.sessionMeleeMisses)
+        local totalHitPct = GetHitPercent(CritTrackerDB.totalMeleeSwings, CritTrackerDB.totalMeleeMisses)
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("|cffFFFF00Sesion:|r %.2f%% hit (%d misses de %d swings)", sessionHitPct, CritTrackerDB.sessionMeleeMisses, CritTrackerDB.sessionMeleeSwings))
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("|cffFFD700Total:|r %.2f%% hit (%d misses de %d swings)", totalHitPct, CritTrackerDB.totalMeleeMisses, CritTrackerDB.totalMeleeSwings))
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888Nota: Solo cuenta ataques melee (autoataque)|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cff888888El cap de hit vs mobs +3 niveles es 9%|r")
+        confirmClear = false
+        
     elseif msg == "levels" then
         DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444=== Records por Nivel ===|r")
         local hasData = false
@@ -667,6 +794,10 @@ SlashCmdList["CRITTRACKER"] = function(msg)
             CritTrackerDB.totalCrits = 0
             CritTrackerDB.sessionHits = 0
             CritTrackerDB.sessionCrits = 0
+            CritTrackerDB.totalMeleeSwings = 0
+            CritTrackerDB.totalMeleeMisses = 0
+            CritTrackerDB.sessionMeleeSwings = 0
+            CritTrackerDB.sessionMeleeMisses = 0
             UpdateWidget()
             DEFAULT_CHAT_FRAME:AddMessage("|cffFF4444[CritTracker]|r Todos los datos borrados!")
             confirmClear = false
